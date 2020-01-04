@@ -45,3 +45,64 @@ sentry-native in the news https://blog.sentry.io/2019/09/26/fixing-native-apps-w
 
 ## Gif
 ![gif](screenshots/sentry-native-2-events-150.gif)
+
+
+# Minidumps
+
+You can `curl` your .dmp files directly to the Sentry API.
+
+[Additional documentation - docs.sentry.io native/minidumps](https://docs.sentry.io/platforms/native/minidump/#minidump-additional)
+
+?
+> Note - Sentry Native is a wrapper around two most popular crash-reporting frameworks: Breakpad and Crashpad
+
+## Setup
+First you need to obtain your own Minidumps Endpoint for your Sentry Project. You will use this api endpoint as the basis for your curl command in the Run steps.
+1. Project Settings > DSN Keys, click 'Expand' > Minidump Endpoint is given
+2. Run a Mac [sentry-native](#sentry-native) crash to produce .dmp's that you can upload. They will get stored in `./sentry-db/completed`
+3. Run the following with what you produced in steps 1,2 above:
+```
+curl -X POST \
+  <your_minidump_endpoint> \
+  -F upload_file_minidump=@<name_of_your_file>.dmp
+```
+
+## Run
+1. `make run_crash` <-- but can't run the clean_db part or else the .dmp is missing. so...  
+`SENTRY_DSN=https://b5ceabee4e4a4cd6b21afe3bd2cbbed4@sentry.io/1720457 bin/example --crash`
+2. `cd ./sentry-db/completed`
+3. 
+```
+curl -X POST \
+  'https://sentry.io/api/1720457/minidump/?sentry_key=b5ceabee4e4a4cd6b21afe3bd2cbbed4' \
+  -F upload_file_minidump=@b066e1b0-68ef-4d7a-8f59-e59ad0e63d8d.dmp
+```
+try it with JSON for release + tags
+```
+curl -X POST \
+  'https://sentry.io/api/1720457/minidump/?sentry_key=b5ceabee4e4a4cd6b21afe3bd2cbbed4' \
+  -F upload_file_minidump=@40467503-6652-4dd5-8c7b-d63c7e29a649.dmp \
+  -F 'sentry={"release":"1.2.3","tags":{"myotag":"value"}}'
+```
+4. try with Line-separated ("flattened") for release + tags
+
+#### What Native Crash Looks Like?
+- the 'myotag' tag appeared under heatmap, but not under TAGS section
+- 'release' appeared on rt-side sidebar and heatmap, but not under TAGS section <-- could be a general upload problem
+- the 'histag' did same, but 'myotag' is still there?
+
+#### What Capture Message Looks Like?
+It is a .dmp sent with the Capture Message? Does Capture Message return an exit status to the C/C++ function?
+- no tag and no release shown
+
+#### This curl dmp is producing 1 or 2?
+- Looks like it's producing 2, interesting.
+
+#### Release and Tags
+- Breadcrumbs? (a lot of work, formatting-wise)
+- Release and Tags sufficient? that's what our documentation covers
+
+#### Note
+- You can do it with your own .dmp? any .dmp will work?
+- Event time and Processing time may differ, depending on how long you wait between generating the event (native crash) and curl'ing it to sentry.io/api.
+![event-latency](screenshots/event-time-vs-processing-time.png)
